@@ -13,8 +13,9 @@ import tqdm
 class HitAndRun(object):
     """Hit-and-run sampler."""
 
-    def __init__(self, polytope=None, starting_point=None,
-                 n_samples=100, thin=1):
+    def __init__(
+        self, polytope=None, starting_point=None, n_samples=100, thin=1
+    ):
         """
         Create a hit-and-run sampler.
 
@@ -55,10 +56,7 @@ class HitAndRun(object):
             self.thin = thin
 
         # keep only one every thin
-        for i in tqdm.tqdm(
-            range(self.n_samples),
-            desc="hit-and-run steps:"
-        ):
+        for i in tqdm.tqdm(range(self.n_samples), desc="hit-and-run steps:"):
             for _ in range(self.thin):
                 self._step()
             self._add_current_to_samples()
@@ -75,9 +73,11 @@ class HitAndRun(object):
         try:
             lam_plus = np.min(self.lambdas[self.lambdas > 0])
             lam_minus = np.max(self.lambdas[self.lambdas < 0])
-        except(Exception):
-            raise RuntimeError("The current direction does not intersect"
-                               "any of the hyperplanes.")
+        except (Exception):
+            raise RuntimeError(
+                "The current direction does not intersect"
+                "any of the hyperplanes."
+            )
         # throw random point between lambdas
         lam = np.random.uniform(low=lam_minus, high=lam_plus)
         # compute new point and add it
@@ -106,7 +106,14 @@ class HitAndRun(object):
 
     def _set_random_direction(self):
         """Set a unitary random direction in which to travel."""
-        direction = np.random.randn(self.polytope.dim)
+        if self.polytope.N is None:
+            # no equality constraints; sample at random
+            direction = np.random.randn(self.polytope.dim)
+        else:
+            # sample a random direction in Null(C).
+            coeffs = np.random.randn(self.polytope.N.shape[1])
+            direction = self.polytope.N @ coeffs
+        
         self.direction = direction / norm(direction)
 
     def _add_current_to_samples(self):
