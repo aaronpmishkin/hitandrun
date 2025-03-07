@@ -46,9 +46,9 @@ class Polytope(object):
         if self.C is not None:
             n, m = C.shape
 
-            # Compute the Null space of Z
+            # Compute the Null space of C
             U, s, Vh = scipy.linalg.svd(C, full_matrices=True)
-            zeros = np.argwhere(s == 0)
+            zeros = np.argwhere(np.isclose(s, 0))
             if len(zeros) == 0:
                 self.N = Vh[n:].T
             else:

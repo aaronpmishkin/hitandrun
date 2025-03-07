@@ -3,7 +3,10 @@ Hit-and-run sampler.
 
 Francesc Font-Clos
 Oct 2018
+
+Modified by Aaron Mishkin
 """
+
 import numpy as np
 from scipy.spatial.distance import norm
 
@@ -14,7 +17,12 @@ class HitAndRun(object):
     """Hit-and-run sampler."""
 
     def __init__(
-        self, polytope=None, starting_point=None, n_samples=100, thin=1
+        self,
+        polytope=None,
+        starting_point=None,
+        n_samples=100,
+        thin=1,
+        seed=778,
     ):
         """
         Create a hit-and-run sampler.
@@ -29,6 +37,8 @@ class HitAndRun(object):
             Number of desired samples.
         thin : int
             Thinning factor, increase to get independent samples.
+        seed : int
+            Seed for random generator.
 
         """
         # make sure we got a point inside the polytope
@@ -40,6 +50,7 @@ class HitAndRun(object):
         self.starting_point = starting_point
         self.n_samples = n_samples
         self.thin = thin
+        self.rng = np.random.default_rng(seed)
         # place starting point as current point
         self.current = starting_point
         # set a starting random direction
@@ -71,17 +82,21 @@ class HitAndRun(object):
         self._find_lambdas()
         # find smallest positive and negative lambdas
         try:
+            # potentially dangerous
             lam_plus = np.min(self.lambdas[self.lambdas > 0])
             lam_minus = np.max(self.lambdas[self.lambdas < 0])
-        except (Exception):
+        except Exception:
             raise RuntimeError(
                 "The current direction does not intersect"
                 "any of the hyperplanes."
             )
         # throw random point between lambdas
-        lam = np.random.uniform(low=lam_minus, high=lam_plus)
+        lam = self.rng.uniform(low=lam_minus, high=lam_plus)
         # compute new point and add it
         new_point = self.current + lam * self.direction
+
+        # new point must be inside the polytope
+        assert self.polytope.check_inside(new_point)
         self.current = new_point
 
     def _find_lambdas(self):
@@ -108,12 +123,12 @@ class HitAndRun(object):
         """Set a unitary random direction in which to travel."""
         if self.polytope.N is None:
             # no equality constraints; sample at random
-            direction = np.random.randn(self.polytope.dim)
+            direction = self.rng.standard_normal(self.polytope.dim)
         else:
             # sample a random direction in Null(C).
-            coeffs = np.random.randn(self.polytope.N.shape[1])
+            coeffs = self.rng.standard_normal(self.polytope.N.shape[1])
             direction = self.polytope.N @ coeffs
-        
+
         self.direction = direction / norm(direction)
 
     def _add_current_to_samples(self):
